@@ -1,6 +1,26 @@
 # TCP Client-Server Project
 Group 9's submission for programming assignment 1 in Dr. Wang's CS576 @ SDSU
 
+
+---
+
+## **Features**
+- Implements **local TCP communication** using `127.0.0.1:5050`  
+- **Encodes** messages sent from the client  
+- Supports **multiple clients** using Python's `threading` module  
+- **Graceful disconnect handling**  
+- **Error handling** for invalid input and unexpected connection losses  
+
+---
+
+## **Requirements**
+- Python 3.x installed
+- Runs **locally** on `127.0.0.1`
+- No additional dependencies required
+
+---
+
+
 ---
 
 ## **How to Run the Program**
@@ -48,6 +68,19 @@ The client will close, and the server logs:
 [Goodbye]
 [52509] Disconnected.
 ```
+
+---
+## **Code Breakdown**
+### **server.py**
+- **Creates a TCP socket**
+- **Encodes messages** using ASCII shifting (`chr(ord(char) + 1)`)
+- **Handles multiple clients** using `threading`
+- **Closes connections gracefully**
+
+### **client.py**
+- **Connects to the local server**
+- **Sends messages** and receives encoded responses
+- **Handles errors and disconnections properly**
 
 ---
 
