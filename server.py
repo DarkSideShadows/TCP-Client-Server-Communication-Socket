@@ -54,10 +54,14 @@ def handle_client(conn, addr):
         print(f"[ERROR] Connection lost with {addr}.")  # Handle unexpected client disconnections
     
     finally:
+        print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 2}")  # Exclude main thread and current thread
         conn.close()  # Ensure connection is properly closed when done
 
 def start():
-    """Starts the server and listens for client connections."""
+    """
+    Starts the server and listens for client connections.
+    """
+    
     server.listen()  # Put the server in listening mode
     print(f"[LISTENING] Server is listening on {SERVER}:{PORT}")
 
