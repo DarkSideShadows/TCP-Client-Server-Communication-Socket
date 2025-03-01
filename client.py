@@ -1,39 +1,61 @@
-import socket
-#import pickle # serialize object (pickle), send through socket to server, server unpickles and uses object
+import socket  # Import socket module for network communication
 
-# constants
-HEADER = 64 # 64 bytes to determine length of message
-PORT = 5050
-SERVER = socket.gethostbyname(socket.gethostname()) # local ip address
-ADDR = (SERVER, PORT)
-FORMAT = 'utf-8'
-DISCONNECT_MESSAGE ="!DISCONNECT" # for clean disconnects (concern: false positive user is connected)
+# Constants
+HEADER = 64  # Fixed 64-byte header for message length
+PORT = 5050  # The same port number used by the server
+SERVER = "127.0.0.1"  # Localhost - ensures client connects to a local server
+ADDR = (SERVER, PORT)  # Server address tuple (IP, Port)
+FORMAT = 'utf-8'  # Encoding format for sending/receiving data
+DISCONNECT_MESSAGE = "!DISCONNECT"  # Special message to terminate connection
+MAX_MESSAGE_LENGTH = 256  # Maximum length allowed for messages
 
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # setup socket for client
-client.connect(ADDR) # connect to server
+# Create a client socket using IPv4 (AF_INET) and TCP (SOCK_STREAM)
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-# different send formats: json string? pickle?
-def send(obj):
-    pass
+try:
+    client.connect(ADDR)  # Connect to the local server
+except Exception as e:
+    print(f"[ERROR] Could not connect to server: {e}")
+    exit()  # Exit if the server is unreachable
 
-def send(msg): # send a string
-    message = msg.encode(FORMAT) # encode string into a byte object to send through socket
-    msg_length = len(message)
-    send_length = str(msg_length).encode(FORMAT) 
-    send_length += b" " * (HEADER - len(send_length)) # pad message to get 64 bytes
-    client.send(send_length)
-    client.send(message)
-    print(client.recv(2048).decode(FORMAT)) # handle whatever message is sent back from server
+def send(msg): # Send method
+    
+    try:
+        if len(msg) > MAX_MESSAGE_LENGTH:
+            print("[ERROR] Message too long! Max length is 256 characters.")
+            return  # Don't send messages that exceed the limit
 
-# User input loop for continuous messaging
+        message = msg.encode(FORMAT) # Convert message to bytes
+        msg_length = str(len(message)).encode(FORMAT) # Convert message length to a string and encode it
+        msg_length += b" " * (HEADER - len(msg_length)) # Pad the message length to be exactly 64 bytes (HEADER size)
+
+        # Send the message length first, then the actual message
+        client.send(msg_length)
+        client.send(message)
+
+        # Receive and print the response from the server
+        response = client.recv(2048).decode(FORMAT)
+        print(f"[SERVER RESPONSE] {response}")
+    
+    # Error Handling
+    except (ConnectionResetError, BrokenPipeError):
+        print("[ERROR] Connection to server lost.")
+        client.close()
+        exit()
+
+# Display instructions for the user
+print("\n==== CLIENT INSTRUCTIONS ====")
+print("1. Type a message to send to the server for encoding.")
+print("2. Type 'exit' to disconnect.\n")
+
+# Main loop for user input
 while True:
-    msg = input("Enter message (or type 'exit' to disconnect): ")
-    
-    if msg.lower() == "exit":
-        send(DISCONNECT_MESSAGE)
-        break  
-    
-    send(msg)  
+    user_input = input("Enter message (or 'exit' to disconnect): ")
 
-# Close the connection
-client.close()
+    if user_input.lower() == "exit":
+        send(DISCONNECT_MESSAGE)  # Inform the server of disconnection
+        break  # Exit the loop and close the connection
+    else:
+        send(user_input)  # Send the user input to the server for encoding
+
+client.close()  # Close the connection when done
