@@ -25,9 +25,15 @@ def send(msg): # send a string
     client.send(message)
     print(client.recv(2048).decode(FORMAT)) # handle whatever message is sent back from server
 
-send("Hello World!")
-input()
-send("Hello everyone!")
-input()
-send("Hello Tim!")
-send(DISCONNECT_MESSAGE)
+# User input loop for continuous messaging
+while True:
+    msg = input("Enter message (or type 'exit' to disconnect): ")
+    
+    if msg.lower() == "exit":
+        send(DISCONNECT_MESSAGE)
+        break  
+    
+    send(msg)  
+
+# Close the connection
+client.close()
