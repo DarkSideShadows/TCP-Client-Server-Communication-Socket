@@ -1,52 +1,81 @@
 import socket
-import threading
+import threading  # For handling multiple client connections concurrently
 
-# constants
-HEADER = 64 # 64 bytes to determine length of message
-PORT = 5050
-SERVER = socket.gethostbyname(socket.gethostname()) # local ip address
-ADDR = (SERVER, PORT)
-FORMAT = 'utf-8'
-DISCONNECT_MESSAGE ="!DISCONNECT" # for clean disconnects (concern: false positive user is connected)
+# Constants
+HEADER = 64  # First 64 bytes determine the length of the message
+PORT = 5050  # Port number where the server will listen for connections
+SERVER = "127.0.0.1"  # Localhost - ensures server runs only on the local machine
+ADDR = (SERVER, PORT)  # Server address tuple (IP, Port)
+FORMAT = 'utf-8'  # Encoding format for sending/receiving data
+DISCONNECT_MESSAGE = "!DISCONNECT"  # Special message for clients to disconnect
+MAX_MESSAGE_LENGTH = 256  # Maximum allowed message length
 
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # open device to other connections, send data through stream
-server.bind(ADDR) # anything that connects to this server goes to ADDR
+# Create a server socket using IPv4 (AF_INET) and TCP (SOCK_STREAM)
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind(ADDR)  # Bind the server to the specified IP and port
 
 def encode_message(message):
+    #Encodes a message by shifting each character to the next ASCII character
     return ''.join(chr(ord(char) + 1) for char in message)
 
-# Handle individual client connections
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
 
-    connected = True
-    while connected:
-        msg_length = conn.recv(HEADER).decode(FORMAT)
-        if msg_length:  # Check for a valid message
-            msg_length = int(msg_length)
+    try:
+        while True:
+            # Receive the message length first (fixed 64-byte header)
+            msg_length = conn.recv(HEADER).decode(FORMAT)
+            if not msg_length:
+                break  # No data received, client likely disconnected
+
+            msg_length = int(msg_length)  # Convert length string to integer
+
+            # Ensure the message does not exceed the allowed limit
+            if msg_length > MAX_MESSAGE_LENGTH:
+                conn.send("Error: Message too long!".encode(FORMAT))
+                continue
+
+            # Receive the actual message from the client
             msg = conn.recv(msg_length).decode(FORMAT)
 
+            # Check if the client wants to disconnect
             if msg == DISCONNECT_MESSAGE:
-                connected = False  # Disconnect if user sends "!DISCONNECT"
+                print(f"[{addr}] Disconnected.")
+                break  # Exit the loop and close the connection
 
-            print(f"[{addr}] {msg}")
-
-            # send message from server to client
+            # Encode the received message
             encoded_msg = encode_message(msg)
+            print(f"[{addr}] {msg} -> {encoded_msg}")  # Log original and encoded messages
+
+            # Send the encoded message back to the client
             conn.send(encoded_msg.encode(FORMAT))
 
-    conn.close()  # Close the connection
+    except (ConnectionResetError, BrokenPipeError):
+        print(f"[ERROR] Connection lost with {addr}.")  # Handle unexpected client disconnections
+    
+    finally:
+        conn.close()  # Ensure connection is properly closed when done
 
 def start():
-   server.listen() # listen to connections
-   print(f"[LISTENING] Server is listening on {SERVER}")
-   while True: 
-       # wait for new connection
-       # information: ip addr, port (addr) & connection object (conn)
-       conn, addr = server.accept() 
-       thread = threading.Thread(target=handle_client, args=(conn, addr))
-       thread.start()
-       print(f"[ACTIVE CONNECTIONS] {threading.active_count()-1}")
+    """Starts the server and listens for client connections."""
+    server.listen()  # Put the server in listening mode
+    print(f"[LISTENING] Server is listening on {SERVER}:{PORT}")
 
-print("[STARTING] server is starting...")
+    while True:
+        try:
+            # Accept incoming client connection
+            conn, addr = server.accept()  # conn = socket object, addr = (client_ip, client_port)
+
+            # Start a new thread to handle the client
+            thread = threading.Thread(target=handle_client, args=(conn, addr))
+            thread.start()
+
+            # Print the number of active client connections
+            print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")  # Exclude main thread
+
+        except Exception as e:
+            print(f"[ERROR] Server encountered an error: {e}")
+
+# Start the server
+print("[STARTING] Server is starting...")
 start()
